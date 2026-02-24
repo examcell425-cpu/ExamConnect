@@ -222,9 +222,9 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
             const text = response.text();
 
             setMessages(prev => [...prev, { role: 'ai', content: text }]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI Error:", error);
-            setMessages(prev => [...prev, { role: 'ai', content: "I'm sorry, I'm having trouble connecting to my brain right now. Please try again later!" }]);
+            setMessages(prev => [...prev, { role: 'ai', content: `I'm having trouble connecting to my brain. Error Details: ${error?.message || 'Unknown network error. Is your API key correct in Netlify?'}` }]);
         } finally {
             setIsLoading(false);
         }
