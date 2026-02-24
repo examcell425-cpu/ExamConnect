@@ -233,40 +233,22 @@ function DefaultElements() {
 }
 
 function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
-    const [modelExists, setModelExists] = useState<boolean | null>(null);
     const url = theme === 'male' ? '/boy.fbx' : '/girl.glb';
 
-    useEffect(() => {
-        if (theme === 'default') {
-            setModelExists(false);
-            return;
-        }
-
-        fetch(url)
-            .then(res => {
-                if (res.ok) setModelExists(true);
-                else setModelExists(false);
-            })
-            .catch(() => setModelExists(false));
-    }, [theme, url]);
-
-    if (modelExists === null) return null; // Wait for check
-
-    if (modelExists) {
-        return (
-            <Suspense fallback={<AbstractAvatar theme={theme} />}>
-                {theme === 'male' ? (
-                    // Play around with FBX scale depending on how the model was exported (0.01 or 0.02 is usually standard)
-                    <FBXAvatar url={url} scale={0.015} position={[0, -3.5, -4]} />
-                ) : (
-                    <GLTFAvatar url={url} scale={1.8} position={[0, -3, -5]} />
-                )}
-            </Suspense>
-        );
+    if (theme === 'default') {
+        return <AbstractAvatar theme={theme} />;
     }
 
-    // Fallback gracefully to the Abstract Avatar if file is missing
-    return <AbstractAvatar theme={theme} />;
+    return (
+        <Suspense fallback={<AbstractAvatar theme={theme} />}>
+            {theme === 'male' ? (
+                // Play around with FBX scale depending on how the model was exported (0.01 or 0.02 is usually standard)
+                <FBXAvatar url={url} scale={0.015} position={[0, -3.5, -4]} />
+            ) : (
+                <GLTFAvatar url={url} scale={1.8} position={[0, -3, -5]} />
+            )}
+        </Suspense>
+    );
 }
 
 export default function Background3D() {
