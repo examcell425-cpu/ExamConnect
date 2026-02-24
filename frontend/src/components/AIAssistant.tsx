@@ -5,6 +5,10 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Float, Sphere, MeshDistortMaterial } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare, X, Sparkles } from 'lucide-react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Initialize Gemini API (Uses an environment variable if available, otherwise it will fallback to a hardcoded demo response if the variable is missing to prevent crashing)
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "dummy_key");
 
 // Enhanced 3D composition with "Glassmorphism" floating elements
 function AestheticModel({ gender }: { gender: string }) {
@@ -50,36 +54,6 @@ function AestheticModel({ gender }: { gender: string }) {
                 </mesh>
             </Float>
 
-            {/* Floating Glass Panels (UI Representation) */}
-            <Float speed={1.5} rotationIntensity={1} floatIntensity={2}>
-                <mesh position={[-1.5, 1, 0.5]} rotation={[0, 0.5, 0]}>
-                    <boxGeometry args={[1.2, 0.8, 0.05]} />
-                    <meshPhysicalMaterial
-                        color="white"
-                        transmission={0.9}
-                        opacity={1}
-                        metalness={0}
-                        roughness={0}
-                        ior={1.5}
-                        thickness={0.5}
-                        transparent
-                    />
-                </mesh>
-                <mesh position={[1.5, 1.5, 0.2]} rotation={[0, -0.3, 0]}>
-                    <boxGeometry args={[0.8, 1.2, 0.05]} />
-                    <meshPhysicalMaterial
-                        color="white"
-                        transmission={0.9}
-                        opacity={1}
-                        metalness={0}
-                        roughness={0}
-                        ior={1.5}
-                        thickness={0.5}
-                        transparent
-                    />
-                </mesh>
-            </Float>
-
             {/* Glowing Orbs around */}
             <Float speed={3} rotationIntensity={2} floatIntensity={3}>
                 <Sphere args={[0.2, 32, 32]} position={[1.2, 0, 1]}>
@@ -98,9 +72,10 @@ function AestheticModel({ gender }: { gender: string }) {
             </Float>
 
             {/* Distorted Background Element */}
-            <mesh position={[0, 1, -2]} scale={3}>
+            {/* Reduced scale and opacity to stop it from overtaking the UI text completely */}
+            <mesh position={[0, 1, -2]} scale={1.8}>
                 <sphereGeometry args={[1, 64, 64]} />
-                <MeshDistortMaterial color={color} distort={0.4} speed={2} roughness={0.2} metalness={0.8} opacity={0.3} transparent />
+                <MeshDistortMaterial color={color} distort={0.3} speed={2} roughness={0.2} metalness={0.8} opacity={0.15} transparent />
             </mesh>
         </group>
     );
@@ -109,19 +84,54 @@ function AestheticModel({ gender }: { gender: string }) {
 export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: string, content: string }[]>([
-        { role: 'ai', content: `Hello! I'm your ${gender === 'female' ? 'girl' : 'boy'} AI assistant. How can I help you study today?` }
+        { role: 'ai', content: `Hello! I'm your ${gender === 'female' ? 'girl' : 'boy'} AI Assistant powered by Gemini. How can I help you study today?` }
     ]);
     const [input, setInput] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
-    const handleSend = () => {
-        if (!input.trim()) return;
-        setMessages(prev => [...prev, { role: 'user', content: input }]);
-        const currentInput = input;
+    // Auto-scroll to bottom of messages
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    const handleSend = async () => {
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = input;
+        setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
         setInput('');
+        setIsLoading(true);
 
-        setTimeout(() => {
-            setMessages(prev => [...prev, { role: 'ai', content: `I can certainly help you with "${currentInput}". Let's break it down into easy chunks!` }]);
-        }, 1000);
+        try {
+            // Only try calling the real API if the project has an API key set
+            if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+                setTimeout(() => {
+                    setMessages(prev => [...prev, {
+                        role: 'ai',
+                        content: `You asked: "${userMessage}". Because you haven't set up the NEXT_PUBLIC_GEMINI_API_KEY in your frontend/.env.local file yet, I cannot connect to the real AI. Please add it so I can assist you properly!`
+                    }]);
+                    setIsLoading(false);
+                }, 1000);
+                return;
+            }
+
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const result = await model.generateContent(
+                `You are a helpful, extremely concise, and encouraging ${gender === 'female' ? 'female' : 'male'} student study assistant for Exam Connect platform. Answer the student's question in 1 or 2 short paragraphs max: ${userMessage}`
+            );
+            const response = await result.response;
+            const text = response.text();
+
+            setMessages(prev => [...prev, { role: 'ai', content: text }]);
+        } catch (error) {
+            console.error("AI Error:", error);
+            setMessages(prev => [...prev, { role: 'ai', content: "I'm sorry, I'm having trouble connecting to my brain right now. Please try again later!" }]);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const themeColor = gender === 'female' ? 'rgba(236, 72, 153, 0.4)' : 'rgba(139, 92, 246, 0.4)';
@@ -135,7 +145,7 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
-                    position: 'fixed', bottom: 30, right: 30, zIndex: 50,
+                    position: 'fixed', bottom: 30, right: 30, zIndex: 100, // Increased z-index
                     width: 65, height: 65, borderRadius: '50%',
                     background: 'rgba(255, 255, 255, 0.1)',
                     backdropFilter: 'blur(10px)',
@@ -157,11 +167,11 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.9 }}
                         style={{
-                            position: 'fixed', bottom: 110, right: 30, zIndex: 50,
+                            position: 'fixed', bottom: 110, right: 30, zIndex: 100, // Increased z-index
                             width: 380, height: 650, borderRadius: 24,
-                            background: 'rgba(15, 15, 25, 0.4)',
-                            backdropFilter: 'blur(30px) saturate(150%)',
-                            WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+                            background: 'rgba(15, 15, 25, 0.85)', // Stronger background to prevent canvas elements from overriding text readability
+                            backdropFilter: 'blur(30px)',
+                            WebkitBackdropFilter: 'blur(30px)',
                             border: '1px solid rgba(255, 255, 255, 0.1)',
                             boxShadow: `0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 40px ${themeColor}`,
                             display: 'flex', flexDirection: 'column',
@@ -172,7 +182,8 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                         <div style={{
                             padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            background: 'linear-gradient(90deg, rgba(255,255,255,0.05), transparent)'
+                            background: 'linear-gradient(90deg, rgba(255,255,255,0.05), transparent)',
+                            position: 'relative', zIndex: 20
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{
@@ -187,9 +198,9 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                         </div>
 
                         {/* 3D Canvas Area */}
-                        <div style={{ height: 280, position: 'relative' }}>
-                            {/* Decorative background glow inside the canvas container */}
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.3, borderRadius: '50%' }} />
+                        {/* Gave this a lower zIndex and placed it absolute so it acts as a true background without messing up chat flow */}
+                        <div style={{ position: 'absolute', top: 60, left: 0, right: 0, height: 280, zIndex: 1 }}>
+                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 200, height: 200, background: glowColor, filter: 'blur(80px)', opacity: 0.2, borderRadius: '50%' }} />
 
                             <Canvas camera={{ position: [0, 1.5, 5], fov: 45 }}>
                                 <ambientLight intensity={0.8} />
@@ -199,10 +210,16 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                                 <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1} maxPolarAngle={Math.PI / 2 + 0.1} minPolarAngle={Math.PI / 2 - 0.5} />
                                 <ContactShadows position={[0, -0.6, 0]} opacity={0.6} scale={10} blur={2.5} far={4} color={glowColor} />
                             </Canvas>
+
+                            {/* Gradient fade to integrate canvas with chat area */}
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, rgba(15,15,25,0.9), transparent)' }} />
                         </div>
 
+                        {/* Spacer for absolute Canvas */}
+                        <div style={{ height: 180, flexShrink: 0 }} />
+
                         {/* Chat History */}
-                        <div style={{ flex: 1, padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, zIndex: 10 }}>
+                        <div ref={scrollRef} style={{ flex: 1, padding: 20, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, zIndex: 10, position: 'relative' }}>
                             {messages.map((m, i) => (
                                 <motion.div
                                     key={i}
@@ -216,21 +233,33 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                                         borderBottomLeftRadius: m.role === 'ai' ? 4 : 20,
                                         background: m.role === 'user'
                                             ? `linear-gradient(135deg, ${gender === 'female' ? '#f472b6, #db2777' : '#a78bfa, #7c3aed'})`
-                                            : 'rgba(255,255,255,0.08)',
+                                            : 'rgba(30,30,40,0.85)',
                                         border: m.role === 'ai' ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                                        boxShadow: m.role === 'user' ? `0 4px 15px ${themeColor}` : 'none',
+                                        boxShadow: m.role === 'user' ? `0 4px 15px ${themeColor}` : '0 4px 15px rgba(0,0,0,0.2)',
                                         color: 'white',
                                         fontSize: '0.95rem', lineHeight: 1.5,
-                                        backdropFilter: 'blur(10px)'
+                                        backdropFilter: 'blur(20px)'
                                     }}
                                 >
                                     {m.content}
                                 </motion.div>
                             ))}
+                            {isLoading && (
+                                <motion.div
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                    style={{
+                                        alignSelf: 'flex-start', padding: '12px 16px', borderRadius: 20,
+                                        background: 'rgba(30,30,40,0.85)', border: '1px solid rgba(255,255,255,0.1)',
+                                        color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem'
+                                    }}
+                                >
+                                    Thinking...
+                                </motion.div>
+                            )}
                         </div>
 
                         {/* Input Area */}
-                        <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)', zIndex: 10 }}>
+                        <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(15,15,25,0.95)', zIndex: 10, position: 'relative' }}>
                             <div style={{ display: 'flex', gap: 10, background: 'rgba(255,255,255,0.05)', borderRadius: 24, padding: '6px 6px 6px 16px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                 <input
                                     type="text"
@@ -242,19 +271,19 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                                         flex: 1, background: 'transparent', border: 'none', color: 'white',
                                         outline: 'none', fontSize: '0.95rem'
                                     }}
+                                    disabled={isLoading}
                                 />
                                 <button
                                     onClick={handleSend}
+                                    disabled={isLoading}
                                     style={{
                                         width: 40, height: 40, borderRadius: '50%',
-                                        background: glowColor,
-                                        boxShadow: `0 0 15px ${glowColor}`,
-                                        color: 'white', border: 'none', cursor: 'pointer',
+                                        background: isLoading ? 'transparent' : glowColor,
+                                        boxShadow: isLoading ? 'none' : `0 0 15px ${glowColor}`,
+                                        color: 'white', border: isLoading ? '1px solid rgba(255,255,255,0.2)' : 'none', cursor: isLoading ? 'not-allowed' : 'pointer',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        transition: 'transform 0.2s'
+                                        transition: 'transform 0.2s', opacity: isLoading ? 0.5 : 1
                                     }}
-                                    onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                                    onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
                                 >
                                     <Send size={18} style={{ marginLeft: -2 }} />
                                 </button>
