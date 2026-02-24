@@ -80,7 +80,7 @@ export default function GroupChat() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
                 style={{
-                    position: 'fixed', bottom: 30, left: 30, zIndex: 40,
+                    position: 'fixed', bottom: 100, left: 30, zIndex: 40,
                     padding: '12px 20px', borderRadius: 30,
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid var(--border-glass)',
@@ -102,7 +102,7 @@ export default function GroupChat() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 50, scale: 0.95 }}
                         style={{
-                            position: 'fixed', bottom: 90, left: 30, zIndex: 40,
+                            position: 'fixed', bottom: 160, left: 30, zIndex: 40,
                             width: 350, height: 500, borderRadius: 20,
                             background: 'rgba(20, 20, 30, 0.9)',
                             backdropFilter: 'blur(20px)',
