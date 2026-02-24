@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Float, Sphere, MeshDistortMaterial } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows, Float, Sphere, MeshDistortMaterial, useGLTF, useAnimations } from '@react-three/drei';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare, X, Sparkles } from 'lucide-react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -12,7 +12,7 @@ import * as THREE from 'three'; // Import THREE for MathUtils
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "dummy_key");
 
 // Enhanced 3D composition with "Glassmorphism" floating elements
-function AestheticModel({ gender }: { gender: string }) {
+function AbstractAIAvatar({ gender }: { gender: string }) {
     const groupRef = useRef<any>(null);
     const { mouse, viewport } = useThree();
 
@@ -108,6 +108,61 @@ function AestheticModel({ gender }: { gender: string }) {
             </mesh>
         </group>
     );
+}
+
+function GLTFAIAvatar({ url, scale = 2, position = [0, -1, 0] }: { url: string, scale?: number, position?: [number, number, number] }) {
+    const groupRef = useRef<THREE.Group>(null);
+    const { scene, animations } = useGLTF(url);
+    const { actions } = useAnimations(animations, groupRef);
+    const { mouse, viewport } = useThree();
+
+    useEffect(() => {
+        if (actions && Object.keys(actions).length > 0) {
+            const firstActionKey = Object.keys(actions)[0];
+            actions[firstActionKey]?.play();
+        }
+    }, [actions]);
+
+    useFrame((state) => {
+        if (!groupRef.current) return;
+        const targetX = (mouse.x * viewport.width) / 5;
+        const targetY = (mouse.y * viewport.height) / 5;
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX, 0.1);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY, 0.1);
+
+        if (!animations || animations.length === 0) {
+            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.05;
+        }
+    });
+
+    return (
+        <group ref={groupRef} position={position} scale={scale}>
+            <primitive object={scene} />
+        </group>
+    );
+}
+
+function AIAvatarWrapper({ gender }: { gender: string }) {
+    const [modelExists, setModelExists] = useState<boolean | null>(null);
+    const url = gender === 'male' ? '/toji.glb' : '/girl.glb';
+
+    useEffect(() => {
+        fetch(url)
+            .then(res => setModelExists(res.ok))
+            .catch(() => setModelExists(false));
+    }, [url]);
+
+    if (modelExists === null) return null;
+
+    if (modelExists) {
+        return (
+            <Suspense fallback={<AbstractAIAvatar gender={gender} />}>
+                <GLTFAIAvatar url={url} scale={gender === 'male' ? 1.5 : 1.3} position={[0, -1.8, 0]} />
+            </Suspense>
+        );
+    }
+
+    return <AbstractAIAvatar gender={gender} />;
 }
 
 export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
@@ -235,7 +290,7 @@ export default function AIAssistant({ gender }: { gender: 'male' | 'female' }) {
                                 <ambientLight intensity={0.8} />
                                 <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={1.5} castShadow />
                                 <Environment preset="city" />
-                                <AestheticModel gender={gender} />
+                                <AIAvatarWrapper gender={gender} />
                                 <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={1} maxPolarAngle={Math.PI / 2 + 0.1} minPolarAngle={Math.PI / 2 - 0.5} />
                                 <ContactShadows position={[0, -0.6, 0]} opacity={0.6} scale={10} blur={2.5} far={4} color={glowColor} />
                             </Canvas>

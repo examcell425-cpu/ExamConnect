@@ -1,27 +1,23 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor } from '@react-three/drei';
+import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor, useGLTF, useAnimations } from '@react-three/drei';
 import { useTheme } from './ThemeProvider';
 import * as THREE from 'three';
 
 // --- Shared Elements ---
 
-// Central Avatar that looks at the mouse
-function Avatar({ theme }: { theme: 'male' | 'female' | 'default' }) {
+// Fallback Abstract Avatar
+function AbstractAvatar({ theme }: { theme: 'male' | 'female' | 'default' }) {
     const groupRef = useRef<THREE.Group>(null);
     const { mouse, viewport } = useThree();
     const color = theme === 'female' ? '#ec4899' : theme === 'male' ? '#0ea5e9' : '#10b981';
 
     useFrame(() => {
         if (!groupRef.current) return;
-
-        // Calculate target looking position based on mouse coordinates map to 3D space
         const targetX = (mouse.x * viewport.width) / 4;
         const targetY = (mouse.y * viewport.height) / 4;
-
-        // Smoothly rotate the group towards the target
         groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.5, 0.1);
         groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.5, 0.1);
     });
@@ -32,40 +28,21 @@ function Avatar({ theme }: { theme: 'male' | 'female' | 'default' }) {
                 {/* Body */}
                 <mesh position={[0, 0, 0]}>
                     <capsuleGeometry args={[0.5, 1.2, 32, 32]} />
-                    <meshPhysicalMaterial
-                        color={color}
-                        roughness={0.2}
-                        metalness={0.5}
-                        clearcoat={1}
-                        transmission={0.3}
-                        thickness={2}
-                    />
+                    <meshPhysicalMaterial color={color} roughness={0.2} metalness={0.5} clearcoat={1} transmission={0.3} thickness={2} />
                 </mesh>
 
                 {/* Head */}
                 <mesh position={[0, 1.4, 0]}>
                     <sphereGeometry args={[0.4, 32, 32]} />
-                    <meshPhysicalMaterial
-                        color={theme === 'default' ? '#a1a1aa' : '#ffffff'}
-                        roughness={0.1}
-                        metalness={0.8}
-                        clearcoat={1}
-                    />
+                    <meshPhysicalMaterial color={theme === 'default' ? '#a1a1aa' : '#ffffff'} roughness={0.1} metalness={0.8} clearcoat={1} />
                 </mesh>
 
-                {/* Eyes (to help show where it is looking) */}
+                {/* Eyes */}
                 <group position={[0, 1.4, 0.35]}>
-                    <mesh position={[-0.15, 0.05, 0]}>
-                        <sphereGeometry args={[0.08, 16, 16]} />
-                        <meshBasicMaterial color={color} />
-                    </mesh>
-                    <mesh position={[0.15, 0.05, 0]}>
-                        <sphereGeometry args={[0.08, 16, 16]} />
-                        <meshBasicMaterial color={color} />
-                    </mesh>
+                    <mesh position={[-0.15, 0.05, 0]}><sphereGeometry args={[0.08, 16, 16]} /><meshBasicMaterial color={color} /></mesh>
+                    <mesh position={[0.15, 0.05, 0]}><sphereGeometry args={[0.08, 16, 16]} /><meshBasicMaterial color={color} /></mesh>
                 </group>
 
-                {/* Female specific visual modifier (Hair/Crown placeholder) */}
                 {theme === 'female' && (
                     <mesh position={[0, 1.8, -0.1]} rotation={[-0.2, 0, 0]}>
                         <torusGeometry args={[0.3, 0.05, 16, 32]} />
@@ -73,25 +50,53 @@ function Avatar({ theme }: { theme: 'male' | 'female' | 'default' }) {
                     </mesh>
                 )}
 
-                {/* Male specific visual modifier (Headphones placeholder) */}
                 {theme === 'male' && (
                     <group position={[0, 1.4, 0]}>
-                        <mesh position={[-0.45, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                            <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
-                            <meshStandardMaterial color="#333" />
-                        </mesh>
-                        <mesh position={[0.45, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-                            <cylinderGeometry args={[0.15, 0.15, 0.1, 16]} />
-                            <meshStandardMaterial color="#333" />
-                        </mesh>
-                        <mesh rotation={[0, 0, Math.PI / 2]}>
-                            <torusGeometry args={[0.45, 0.03, 16, 32, Math.PI]} />
-                            <meshStandardMaterial color="#333" />
-                        </mesh>
+                        <mesh position={[-0.45, 0, 0]} rotation={[0, Math.PI / 2, 0]}><cylinderGeometry args={[0.15, 0.15, 0.1, 16]} /><meshStandardMaterial color="#333" /></mesh>
+                        <mesh position={[0.45, 0, 0]} rotation={[0, Math.PI / 2, 0]}><cylinderGeometry args={[0.15, 0.15, 0.1, 16]} /><meshStandardMaterial color="#333" /></mesh>
+                        <mesh rotation={[0, 0, Math.PI / 2]}><torusGeometry args={[0.45, 0.03, 16, 32, Math.PI]} /><meshStandardMaterial color="#333" /></mesh>
                     </group>
                 )}
             </Float>
             <ContactShadows position={[0, -1.2, 0]} opacity={0.4} scale={5} blur={2} far={2} color={color} />
+        </group>
+    );
+}
+
+function GLTFAvatar({ url, scale = 2, position = [0, -3, -5] }: { url: string, scale?: number, position?: [number, number, number] }) {
+    const groupRef = useRef<THREE.Group>(null);
+    const { scene, animations } = useGLTF(url);
+    const { actions } = useAnimations(animations, groupRef);
+    const { mouse, viewport } = useThree();
+
+    // Play first animation if available (e.g. idle breathing)
+    useEffect(() => {
+        if (actions && Object.keys(actions).length > 0) {
+            const firstActionKey = Object.keys(actions)[0];
+            actions[firstActionKey]?.play();
+        }
+    }, [actions]);
+
+    useFrame((state) => {
+        if (!groupRef.current) return;
+
+        // Mouse tracking logic applied to the entire imported model
+        const targetX = (mouse.x * viewport.width) / 5;
+        const targetY = (mouse.y * viewport.height) / 5;
+
+        // Slight dampening for realistic turning weight
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.4, 0.05);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.2, 0.05);
+
+        // Bobbing effect to simulate idle floating/breathing if no animation exists
+        if (!animations || animations.length === 0) {
+            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+        }
+    });
+
+    return (
+        <group ref={groupRef} position={position} scale={scale}>
+            <primitive object={scene} />
         </group>
     );
 }
@@ -195,6 +200,40 @@ function DefaultElements() {
     );
 }
 
+function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
+    const [modelExists, setModelExists] = useState<boolean | null>(null);
+    const url = theme === 'male' ? '/toji.glb' : '/girl.glb';
+
+    useEffect(() => {
+        if (theme === 'default') {
+            setModelExists(false);
+            return;
+        }
+
+        // Check if the user has placed the custom GLB file in the public folder
+        fetch(url)
+            .then(res => {
+                if (res.ok) setModelExists(true);
+                else setModelExists(false);
+            })
+            .catch(() => setModelExists(false));
+    }, [theme, url]);
+
+    if (modelExists === null) return null; // Wait for check
+
+    if (modelExists) {
+        return (
+            <Suspense fallback={<AbstractAvatar theme={theme} />}>
+                {/* Adjust scale based on typical character proportions */}
+                <GLTFAvatar url={url} scale={theme === 'male' ? 2 : 1.8} position={[0, -3, -5]} />
+            </Suspense>
+        );
+    }
+
+    // Fallback gracefully to the Abstract Avatar if file is missing
+    return <AbstractAvatar theme={theme} />;
+}
+
 // --- Main Background Component ---
 
 export default function Background3D() {
@@ -212,8 +251,8 @@ export default function Background3D() {
                 {theme === 'male' && <MaleElements />}
                 {theme === 'default' && <DefaultElements />}
 
-                {/* Shared central avatar that traces the mouse */}
-                <Avatar theme={theme} />
+                {/* Shared central avatar wrapper that attempts to load custom GLTF models first */}
+                <AvatarWrapper theme={theme} />
 
             </Canvas>
         </div>
