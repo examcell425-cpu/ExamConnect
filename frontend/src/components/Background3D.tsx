@@ -101,26 +101,44 @@ function GLTFAvatar({ url, scale = 2, position = [0, -3, -5] }: { url: string, s
     );
 }
 
-function FBXAvatar({ url, scale = 0.02, position = [0, -3, -5] }: { url: string, scale?: number, position?: [number, number, number] }) {
+function FBXAvatar({ url, scale = 0.012, position = [0, -3.5, -4] }: { url: string, scale?: number, position?: [number, number, number] }) {
     const groupRef = useRef<THREE.Group>(null);
     const fbx = useFBX(url);
     const { actions } = useAnimations(fbx.animations, groupRef);
     const { mouse, viewport } = useThree();
 
     useEffect(() => {
+        // FBX models sometimes don't automatically propagate animations/materials to children well in R3F, so we ensure they are clean
+        fbx.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+            }
+        });
+    }, [fbx]);
+
+    useEffect(() => {
         if (actions && Object.keys(actions).length > 0) {
+            // Find the first action and play it
             const firstActionKey = Object.keys(actions)[0];
-            actions[firstActionKey]?.play();
+            const action = actions[firstActionKey];
+            if (action) {
+                action.reset().fadeIn(0.5).play();
+            }
         }
     }, [actions]);
 
     useFrame((state) => {
         if (!groupRef.current) return;
+
+        // Mouse tracking
         const targetX = (mouse.x * viewport.width) / 5;
         const targetY = (mouse.y * viewport.height) / 5;
         groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.4, 0.05);
         groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.2, 0.05);
 
+        // Fallback bobbing if no animations exist in the FBX file
         if (!fbx.animations || fbx.animations.length === 0) {
             groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
         }
@@ -128,7 +146,7 @@ function FBXAvatar({ url, scale = 0.02, position = [0, -3, -5] }: { url: string,
 
     return (
         <group ref={groupRef} position={position} scale={scale}>
-            <primitive object={fbx} />
+            <primitive object={fbx} dispose={null} />
         </group>
     );
 }
