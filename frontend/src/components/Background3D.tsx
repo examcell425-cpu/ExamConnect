@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor, useGLTF, useAnimations } from '@react-three/drei';
+import { Float, Sphere, Box, Torus, MeshDistortMaterial, Environment, ContactShadows, useCursor, useGLTF, useFBX, useAnimations } from '@react-three/drei';
 import { useTheme } from './ThemeProvider';
 import * as THREE from 'three';
 
@@ -97,6 +97,38 @@ function GLTFAvatar({ url, scale = 2, position = [0, -3, -5] }: { url: string, s
     return (
         <group ref={groupRef} position={position} scale={scale}>
             <primitive object={scene} />
+        </group>
+    );
+}
+
+function FBXAvatar({ url, scale = 0.02, position = [0, -3, -5] }: { url: string, scale?: number, position?: [number, number, number] }) {
+    const groupRef = useRef<THREE.Group>(null);
+    const fbx = useFBX(url);
+    const { actions } = useAnimations(fbx.animations, groupRef);
+    const { mouse, viewport } = useThree();
+
+    useEffect(() => {
+        if (actions && Object.keys(actions).length > 0) {
+            const firstActionKey = Object.keys(actions)[0];
+            actions[firstActionKey]?.play();
+        }
+    }, [actions]);
+
+    useFrame((state) => {
+        if (!groupRef.current) return;
+        const targetX = (mouse.x * viewport.width) / 5;
+        const targetY = (mouse.y * viewport.height) / 5;
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetX * 0.4, 0.05);
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(groupRef.current.rotation.x, -targetY * 0.2, 0.05);
+
+        if (!fbx.animations || fbx.animations.length === 0) {
+            groupRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1;
+        }
+    });
+
+    return (
+        <group ref={groupRef} position={position} scale={scale}>
+            <primitive object={fbx} />
         </group>
     );
 }
@@ -202,7 +234,7 @@ function DefaultElements() {
 
 function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     const [modelExists, setModelExists] = useState<boolean | null>(null);
-    const url = theme === 'male' ? '/toji.glb' : '/girl.glb';
+    const url = theme === 'male' ? '/boy.fbx' : '/girl.glb';
 
     useEffect(() => {
         if (theme === 'default') {
@@ -210,7 +242,6 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
             return;
         }
 
-        // Check if the user has placed the custom GLB file in the public folder
         fetch(url)
             .then(res => {
                 if (res.ok) setModelExists(true);
@@ -224,8 +255,12 @@ function AvatarWrapper({ theme }: { theme: 'male' | 'female' | 'default' }) {
     if (modelExists) {
         return (
             <Suspense fallback={<AbstractAvatar theme={theme} />}>
-                {/* Adjust scale based on typical character proportions */}
-                <GLTFAvatar url={url} scale={theme === 'male' ? 2 : 1.8} position={[0, -3, -5]} />
+                {theme === 'male' ? (
+                    // Play around with FBX scale depending on how the model was exported (0.01 or 0.02 is usually standard)
+                    <FBXAvatar url={url} scale={0.015} position={[0, -3.5, -4]} />
+                ) : (
+                    <GLTFAvatar url={url} scale={1.8} position={[0, -3, -5]} />
+                )}
             </Suspense>
         );
     }
