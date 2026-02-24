@@ -4,8 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DashboardLayout from '../../../../components/DashboardLayout';
 import { motion } from 'framer-motion';
-import { Clock, Send, AlertCircle, CheckCircle } from 'lucide-react';
+import { Clock, Send, AlertCircle, CheckCircle, Upload } from 'lucide-react';
 import api from '../../../../lib/api';
+import { supabase } from '../../../../lib/supabase';
 
 export default function TakeExamPage() {
     const params = useParams();
@@ -18,6 +19,7 @@ export default function TakeExamPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [timeLeft, setTimeLeft] = useState(0);
+    const [file, setFile] = useState<File | null>(null);
 
     useEffect(() => {
         api.get(`/api/student/exams/${examId}`)
@@ -53,12 +55,43 @@ export default function TakeExamPage() {
 
     const handleSubmit = async () => {
         if (submitting) return;
+
+        if (!file) {
+            alert('Please upload your answer sheet as a PDF file before submitting.');
+            return;
+        }
+
+        if (file.type !== 'application/pdf') {
+            alert('Only PDF files are allowed for submission.');
+            return;
+        }
+
         setSubmitting(true);
         try {
-            await api.post(`/api/student/exams/${examId}/submit`, { answers });
+            // Upload to Supabase Storage 'answers' bucket
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${examId}_${Date.now()}.${fileExt}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('answers')
+                .upload(`submissions/${fileName}`, file);
+
+            if (uploadError) {
+                throw new Error(`Upload failed: ${uploadError.message}`);
+            }
+
+            const { data: publicData } = supabase.storage
+                .from('answers')
+                .getPublicUrl(`submissions/${fileName}`);
+
+            const fileUrl = publicData.publicUrl;
+
+            await api.post(`/api/student/exams/${examId}/submit`, {
+                answers,
+                file_url: fileUrl
+            });
             setSubmitted(true);
         } catch (err: any) {
-            alert(err.response?.data?.detail || 'Failed to submit');
+            alert(err.message || err.response?.data?.detail || 'Failed to submit');
         }
         setSubmitting(false);
     };
@@ -177,6 +210,33 @@ export default function TakeExamPage() {
                         )}
                     </motion.div>
                 ))}
+            </div>
+
+            {/* File Upload Section */}
+            <div className="glass-card" style={{ padding: 24, marginTop: 24, border: '1px dashed var(--accent-purple)' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Upload size={20} color="var(--accent-purple)" /> Upload Answer Sheet (PDF Only)
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+                    All handwritten answers or drawn diagrams must be scanned and submitted as a single PDF document.
+                </p>
+                <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(e) => {
+                        const files = e.target.files;
+                        if (files && files.length > 0) {
+                            setFile(files[0]);
+                        }
+                    }}
+                    style={{
+                        padding: '12px',
+                        background: 'rgba(255,255,255,0.05)',
+                        borderRadius: 'var(--radius-md)',
+                        width: '100%',
+                        cursor: 'pointer'
+                    }}
+                />
             </div>
 
             {/* Submit */}

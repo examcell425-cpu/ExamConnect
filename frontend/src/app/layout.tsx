@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
 
+import ClientLayoutWrapper from "../components/ClientLayoutWrapper";
+
+import { ThemeProvider } from "../components/ThemeProvider";
+
 export const metadata: Metadata = {
   title: "Exam Connect — MNSK College of Engineering",
   description: "Online Examination Management System for MNSK College of Engineering. Manage exams, evaluate results, and track performance.",
@@ -22,7 +26,11 @@ export default function RootLayout({
       </head>
       <body>
         <AuthProvider>
-          {children}
+          <ThemeProvider>
+            <ClientLayoutWrapper>
+              {children}
+            </ClientLayoutWrapper>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

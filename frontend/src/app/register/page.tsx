@@ -12,7 +12,7 @@ export default function RegisterPage() {
     const router = useRouter();
     const [form, setForm] = useState({
         email: '', password: '', full_name: '',
-        role: 'student', department: '', reg_number: '',
+        role: 'student', gender: 'male', department: '', reg_number: '',
     });
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
@@ -133,6 +133,24 @@ export default function RegisterPage() {
                             <Mail size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                             <input type="email" className="input-field" placeholder="your@email.com" value={form.email}
                                 onChange={(e) => update('email', e.target.value)} required style={{ paddingLeft: 44 }} />
+                        </div>
+                    </div>
+
+                    {/* Gender Selection */}
+                    <div style={{ marginBottom: 16 }}>
+                        <label className="form-label">Gender</label>
+                        <div style={{ position: 'relative' }}>
+                            <User size={18} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <select
+                                className="input-field"
+                                value={form.gender}
+                                onChange={(e) => update('gender', e.target.value)}
+                                required
+                                style={{ paddingLeft: 44, appearance: 'none' }}
+                            >
+                                <option value="male">Boy</option>
+                                <option value="female">Girl</option>
+                            </select>
                         </div>
                     </div>
 

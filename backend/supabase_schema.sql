@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     email TEXT NOT NULL UNIQUE,
     full_name TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('admin', 'teacher', 'student')),
+    gender TEXT NOT NULL DEFAULT 'male' CHECK (gender IN ('male', 'female')),
     department TEXT,
     reg_number TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -70,6 +71,29 @@ CREATE TABLE IF NOT EXISTS results (
 );
 
 -- ====================================================
+-- Realtime & Communication Tables
+-- ====================================================
+
+-- Group Messages
+CREATE TABLE IF NOT EXISTS group_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sender_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Live Classes
+CREATE TABLE IF NOT EXISTS live_classes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    teacher_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    room_id TEXT NOT NULL UNIQUE, -- For Jitsi/WebRTC room
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ
+);
+
+-- ====================================================
 -- Indexes for performance
 -- ====================================================
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
@@ -122,3 +146,13 @@ CREATE POLICY "Teachers manage results for their exams" ON results FOR ALL USING
     exam_id IN (SELECT id FROM exams WHERE teacher_id = auth.uid())
 );
 CREATE POLICY "Service role full access to results" ON results FOR ALL USING (auth.role() = 'service_role');
+
+-- Group Messages: Everyone can read and write
+ALTER TABLE group_messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read all group messages" ON group_messages FOR SELECT USING (true);
+CREATE POLICY "Users can insert group messages" ON group_messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- Live Classes: Teachers manage, everyone reads active classes
+ALTER TABLE live_classes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_id = auth.uid());
+CREATE POLICY "Everyone reads active live classes" ON live_classes FOR SELECT USING (is_active = TRUE);

@@ -10,6 +10,7 @@ interface UserProfile {
     email: string;
     full_name: string;
     role: 'admin' | 'teacher' | 'student';
+    gender?: 'male' | 'female';
     department?: string;
     reg_number?: string;
 }
@@ -25,6 +26,7 @@ interface AuthContextType {
         password: string;
         full_name: string;
         role: string;
+        gender: string;
         department?: string;
         reg_number?: string;
     }) => Promise<{ error?: string }>;
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password: string;
         full_name: string;
         role: string;
+        gender: string;
         department?: string;
         reg_number?: string;
     }) => {

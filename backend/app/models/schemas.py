@@ -16,6 +16,11 @@ class UserRole(str, Enum):
     student = "student"
 
 
+class UserGender(str, Enum):
+    male = "male"
+    female = "female"
+
+
 class ExamStatus(str, Enum):
     draft = "draft"
     scheduled = "scheduled"
@@ -37,6 +42,7 @@ class UserRegister(BaseModel):
     password: str = Field(min_length=6)
     full_name: str = Field(min_length=2)
     role: UserRole = UserRole.student
+    gender: UserGender       # New field
     department: Optional[str] = None
     reg_number: Optional[str] = None
 
@@ -51,6 +57,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     role: str
+    gender: str              # New field
     department: Optional[str] = None
     reg_number: Optional[str] = None
     created_at: Optional[str] = None
@@ -59,6 +66,7 @@ class UserResponse(BaseModel):
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     role: Optional[UserRole] = None
+    gender: Optional[UserGender] = None
     department: Optional[str] = None
     reg_number: Optional[str] = None
 

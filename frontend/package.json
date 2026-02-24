@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.5.0",
     "@supabase/supabase-js": "^2.97.0",
     "@tailwindcss/postcss": "^4.2.0",
     "axios": "^1.13.5",
@@ -19,7 +21,8 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "recharts": "^3.7.0",
-    "tailwindcss": "^4.2.0"
+    "tailwindcss": "^4.2.0",
+    "three": "^0.183.1"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.8",

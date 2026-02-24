@@ -148,6 +148,10 @@ async def submit_exam(
         if existing.data:
             raise HTTPException(status_code=400, detail="Already submitted this exam")
 
+        # Demand PDF file URL
+        if not submission.file_url or not submission.file_url.endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Submissions must be a PDF file.")
+
         # Create submission
         sub_data = {
             "exam_id": exam_id,
