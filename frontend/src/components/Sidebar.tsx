@@ -17,6 +17,7 @@ import {
     ChevronRight,
     Menu,
     X,
+    Sparkles, // Added for AI Assistant Icon
 } from 'lucide-react';
 
 const roleNavItems = {
@@ -33,6 +34,7 @@ const roleNavItems = {
         { href: '/student/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/student/exams', label: 'Exams', icon: BookOpen },
         { href: '/student/results', label: 'Results', icon: Trophy },
+        { href: '/student/ai-assistant', label: 'AI Study Assistant', icon: Sparkles }, // Added new dedicated page route
     ],
 };
 

@@ -14,10 +14,6 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
         <>
             <Background3D />
             {children}
-            {/* Render AI Assitant globally for authenticated students */}
-            {profile && profile.role === 'student' && (
-                <AIAssistant gender={(profile.gender as 'male' | 'female') || 'female'} />
-            )}
 
             {/* Global Group Chat */}
             <GroupChat />
