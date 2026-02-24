@@ -33,15 +33,18 @@ export default function LoginPage() {
         }
     };
 
-    // Floating particles
-    const particles = Array.from({ length: 15 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: Math.random() * 3 + 2,
-        duration: Math.random() * 8 + 8,
-        delay: Math.random() * 3,
-    }));
+    const [particles, setParticles] = useState<any[]>([]);
+
+    React.useEffect(() => {
+        setParticles(Array.from({ length: 15 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            y: Math.random() * 100,
+            size: Math.random() * 3 + 2,
+            duration: Math.random() * 8 + 8,
+            delay: Math.random() * 3,
+        })));
+    }, []);
 
     return (
         <div style={{

@@ -9,15 +9,19 @@ import { GraduationCap, Shield, BookOpen, BarChart3, ArrowRight, Sparkles } from
 export default function HomePage() {
   const { profile } = useAuth();
 
-  // Floating particles
-  const particles = Array.from({ length: 20 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 4 + 2,
-    duration: Math.random() * 10 + 10,
-    delay: Math.random() * 5,
-  }));
+  const [particles, setParticles] = React.useState<any[]>([]);
+
+  // Generate particles only on the client to prevent SSR hydration mismatches
+  React.useEffect(() => {
+    setParticles(Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 4 + 2,
+      duration: Math.random() * 10 + 10,
+      delay: Math.random() * 5,
+    })));
+  }, []);
 
   const dashboardLink = profile
     ? `/${profile.role}/dashboard`

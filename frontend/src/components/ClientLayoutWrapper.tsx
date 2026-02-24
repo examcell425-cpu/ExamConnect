@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import AIAssistant from './AIAssistant';
 import GroupChat from './GroupChat';
 import LiveClasses from './LiveClasses';
 import dynamic from 'next/dynamic';
