@@ -2,8 +2,13 @@
 
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import AIAssistant from '@/components/AIAssistant';
 import { Sparkles } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const AIAssistant = dynamic(() => import('@/components/AIAssistant'), {
+    ssr: false,
+    loading: () => <div className="animate-pulse w-full h-[600px] bg-white/5 rounded-2xl flex items-center justify-center text-slate-400">Loading 3D Engine...</div>
+});
 
 export default function AIAssistantPage() {
     const { profile } = useAuth();

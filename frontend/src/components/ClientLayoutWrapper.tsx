@@ -5,7 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import AIAssistant from './AIAssistant';
 import GroupChat from './GroupChat';
 import LiveClasses from './LiveClasses';
-import Background3D from './Background3D';
+import dynamic from 'next/dynamic';
+
+// Fix for Next.js SSR hydration crashing with 3D Canvas / FBX loaders
+const Background3D = dynamic(() => import('./Background3D'), {
+    ssr: false,
+    loading: () => <div style={{ position: 'fixed', inset: 0, background: '#0f0f13', zIndex: -10 }} />
+});
 
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
     const { profile } = useAuth();
